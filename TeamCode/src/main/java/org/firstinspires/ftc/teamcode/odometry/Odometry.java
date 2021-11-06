@@ -242,33 +242,35 @@ public class Odometry {
         double inchesPerRev = wheelDiam * Math.PI;
         double ticksPerInch = ticksPerRev/inchesPerRev;
 
-        if (direction == Direction.FORWARD) {
-            distance *= ticksPerInch;
-            newLeftFrontTarget = r.lf.getCurrentPosition() + (int) distance;
-            newLeftBackTarget = r.lb.getCurrentPosition() + (int) distance;
-            newRightFrontTarget = r.rf.getCurrentPosition() + (int) distance;
-            newRightBackTarget = r.rb.getCurrentPosition() + (int) distance;
-        }
-        if (direction == Direction.BACK) {
-            distance *= ticksPerInch;
-            newLeftFrontTarget = r.lf.getCurrentPosition() - (int) distance;
-            newLeftBackTarget = r.lb.getCurrentPosition() - (int) distance;
-            newRightFrontTarget = r.rf.getCurrentPosition() - (int) distance;
-            newRightBackTarget = r.rb.getCurrentPosition() - (int) distance;
-        }
-        if (direction == Direction.LEFT) {
-            distance *= ticksPerInch;
-            newLeftFrontTarget = r.lf.getCurrentPosition() - (int) distance;
-            newLeftBackTarget = r.lb.getCurrentPosition() + (int) distance;
-            newRightFrontTarget = r.rf.getCurrentPosition() + (int) distance;
-            newRightBackTarget = r.rb.getCurrentPosition() - (int) distance;
-        }
-        if (direction == Direction.RIGHT) {
-            distance *= ticksPerInch;
-            newLeftFrontTarget = r.lf.getCurrentPosition() + (int) distance;
-            newLeftBackTarget = r.lb.getCurrentPosition() - (int) distance;
-            newRightFrontTarget = r.rf.getCurrentPosition() - (int) distance;
-            newRightBackTarget = r.rb.getCurrentPosition() + (int) distance;
+        distance *= ticksPerInch;
+
+        switch(direction){
+            case FORWARD:
+                newLeftFrontTarget = r.lf.getCurrentPosition() + (int) distance;
+                newLeftBackTarget = r.lb.getCurrentPosition() + (int) distance;
+                newRightFrontTarget = r.rf.getCurrentPosition() + (int) distance;
+                newRightBackTarget = r.rb.getCurrentPosition() + (int) distance;
+                break;
+            case BACK:
+                newLeftFrontTarget = r.lf.getCurrentPosition() - (int) distance;
+                newLeftBackTarget = r.lb.getCurrentPosition() - (int) distance;
+                newRightFrontTarget = r.rf.getCurrentPosition() - (int) distance;
+                newRightBackTarget = r.rb.getCurrentPosition() - (int) distance;
+                break;
+            case LEFT:
+                newLeftFrontTarget = r.lf.getCurrentPosition() - (int) distance;
+                newLeftBackTarget = r.lb.getCurrentPosition() + (int) distance;
+                newRightFrontTarget = r.rf.getCurrentPosition() + (int) distance;
+                newRightBackTarget = r.rb.getCurrentPosition() - (int) distance;
+                break;
+            case RIGHT:
+                newLeftFrontTarget = r.lf.getCurrentPosition() + (int) distance;
+                newLeftBackTarget = r.lb.getCurrentPosition() - (int) distance;
+                newRightFrontTarget = r.rf.getCurrentPosition() - (int) distance;
+                newRightBackTarget = r.rb.getCurrentPosition() + (int) distance;
+                break;
+            default:
+                return;
         }
 
         // Ensure that the OpMode is still active
@@ -300,7 +302,7 @@ public class Odometry {
 
             // Keep looping until the motor is at the desired position that was inputted
             while (r.opMode.opModeIsActive() &&
-                    (r.lf.isBusy() && r.lb.isBusy() && r.rf.isBusy() && r.rb.isBusy())) {
+                    (r.lf.isBusy() || r.lb.isBusy() || r.rf.isBusy() || r.rb.isBusy())) {
 
                 // Display current status of motor paths
                 r.opMode.telemetry.addData("Path1", "Running to %7d :%7d :%7d :%7d", newLeftFrontTarget, newLeftBackTarget, newRightFrontTarget, newRightBackTarget);
@@ -325,9 +327,6 @@ public class Odometry {
                 r.lb.setPower(0);
                 r.rb.setPower(0);
             }
-
-            resetEncoders();
-
         }
     }
 }

@@ -29,6 +29,8 @@ public class Robot {
         rb = hwMap.get(DcMotor.class, "rb");
 
         imu = hwMap.get(BNO055IMU.class, "imu");
+        params.angleUnit = BNO055IMU.AngleUnit.DEGREES;
+        params.calibrationDataFile = "BNO055IMUCalibration.json";
 
         lf.setDirection(DcMotorSimple.Direction.REVERSE);
         lb.setDirection(DcMotorSimple.Direction.REVERSE);
