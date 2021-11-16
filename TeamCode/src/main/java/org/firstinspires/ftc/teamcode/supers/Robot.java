@@ -32,8 +32,8 @@ public class Robot {
         params.angleUnit = BNO055IMU.AngleUnit.DEGREES;
         params.calibrationDataFile = "BNO055IMUCalibration.json";
 
-        lf.setDirection(DcMotorSimple.Direction.REVERSE);
-        lb.setDirection(DcMotorSimple.Direction.REVERSE);
+        rf.setDirection(DcMotorSimple.Direction.REVERSE);
+        rb.setDirection(DcMotorSimple.Direction.REVERSE);
 
         switch (mode) {
             case TELEOP:
@@ -44,5 +44,10 @@ public class Robot {
                 odo = new Odometry(this);
                 break;
         }
+    }
+
+    public void initCheck(){
+        opMode.telemetry.addData(">", "Initialized");
+        opMode.telemetry.update();
     }
 }
