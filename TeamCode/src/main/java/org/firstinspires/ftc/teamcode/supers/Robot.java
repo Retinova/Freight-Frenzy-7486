@@ -32,8 +32,8 @@ public class Robot {
         params.angleUnit = BNO055IMU.AngleUnit.DEGREES;
         params.calibrationDataFile = "BNO055IMUCalibration.json";
 
-        rf.setDirection(DcMotorSimple.Direction.REVERSE);
-        rb.setDirection(DcMotorSimple.Direction.REVERSE);
+        lf.setDirection(DcMotorSimple.Direction.REVERSE);
+        lb.setDirection(DcMotorSimple.Direction.REVERSE);
 
         switch (mode) {
             case TELEOP:
