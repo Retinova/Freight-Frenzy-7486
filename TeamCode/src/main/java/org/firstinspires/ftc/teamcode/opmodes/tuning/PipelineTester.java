@@ -14,6 +14,7 @@ public class PipelineTester extends LinearOpMode {
 
     OpenCvInternalCamera2 cam;
     CNNPipeline cnn = new CNNPipeline();
+    double[] outs = new double[3];
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -26,7 +27,7 @@ public class PipelineTester extends LinearOpMode {
             public void onOpened() {
                 cam.setPipeline(cnn);
 
-                cam.startStreaming(1280, 720, OpenCvCameraRotation.UPRIGHT);
+                cam.startStreaming(640, 480, OpenCvCameraRotation.UPRIGHT);
             }
 
             @Override
@@ -39,8 +40,12 @@ public class PipelineTester extends LinearOpMode {
         waitForStart();
 
         while (isStarted() && !isStopRequested()){
-            telemetry.addData("CNN Output: ", cnn.output);
-//            telemetry.addData("Path:", cnn.pb);
+            outs[0] = cnn.output.get(0, 0)[0];
+            outs[1] = cnn.output.get(0, 1)[0];
+            outs[2] = cnn.output.get(0, 2)[0];
+
+            telemetry.addData("CNN Amogus:", "\n%.4f\n%.4f\n%.4f", outs[0], outs[1], outs[2]);
+            telemetry.addData("CNN out shape:", cnn.output.size());
             telemetry.update();
             sleep(100);
         }
