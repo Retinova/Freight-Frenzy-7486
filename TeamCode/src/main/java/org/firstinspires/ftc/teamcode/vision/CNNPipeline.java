@@ -5,8 +5,6 @@ import android.content.res.AssetManager;
 import com.qualcomm.robotcore.util.RobotLog;
 
 import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
-import org.firstinspires.ftc.teamcode.R;
-import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Scalar;
 import org.opencv.core.Size;
@@ -19,32 +17,33 @@ import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+
 import static org.opencv.core.CvType.CV_8U;
 
 public class CNNPipeline extends OpenCvPipeline {
-    private File pbFile;
-    public String pb;
     private Net cnn;
     private Mat blob = new Mat();
-    public Mat output = new Mat();
+    private Mat output = new Mat();
+    public ArrayList<String> layers;
+    public double[] latest = new double[3];
+
 
     public CNNPipeline(){
-//        pbFile = new File(AppUtil.getDefContext().getFilesDir(), "v1_1_frozen_graph.pb");
-//        try {
-//            pb = pbFile.getCanonicalPath();
-//        } catch (IOException e) {
-//
-//        }
-
-        cnn = Dnn.readNetFromTensorflow(getPath("v1_1_frozen_graph.pb"));
+        cnn = Dnn.readNetFromTensorflow(getPath("v1_0_frozen_graph.pb"));
+        layers = (ArrayList<String>) cnn.getLayerNames();
     }
 
     @Override
     public Mat processFrame(Mat input) {
         Imgproc.cvtColor(input, input, Imgproc.COLOR_RGBA2RGB);
-        blob = Dnn.blobFromImage(input, 1.0, new Size(input.height(), input.height()), new Scalar(0, 0, 0), true, true, CV_8U);
+        blob = Dnn.blobFromImage(input, 1.0, new Size(input.width(), input.height()), new Scalar(0, 0, 0), false, true, CV_8U);
         cnn.setInput(blob);
         output = cnn.forward();
+
+        latest[0] = output.get(0, 0)[0];
+        latest[1] = output.get(0, 1)[0];
+        latest[2] = output.get(0, 2)[0];
 
         blob.release();
 
