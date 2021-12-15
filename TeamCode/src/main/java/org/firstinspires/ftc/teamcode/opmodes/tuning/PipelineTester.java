@@ -12,7 +12,7 @@ import org.openftc.easyopencv.OpenCvCameraRotation;
 import org.openftc.easyopencv.OpenCvInternalCamera2;
 import org.openftc.easyopencv.OpenCvWebcam;
 
-@TeleOp(name = "PipelineTester")
+@TeleOp(name = "PipelineTester", group="vision")
 public class PipelineTester extends LinearOpMode {
 
     OpenCvCamera cam;

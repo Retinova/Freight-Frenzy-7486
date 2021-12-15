@@ -29,15 +29,16 @@ public class DriveOpMode extends LinearOpMode {
 
         while(isStarted() && !isStopRequested()){
             mecanumDrive();
+            prevState.copyState(gamepad1);
         }
     }
 
     public void mecanumDrive(){
         double lfp, lbp, rfp, rbp;
-        rfp = -gamepad1.left_stick_y - gamepad1.left_stick_x - gamepad1.right_stick_x;
-        rbp = -gamepad1.left_stick_y + gamepad1.left_stick_x - gamepad1.right_stick_x;
-        lfp = -gamepad1.left_stick_y + gamepad1.left_stick_x + gamepad1.right_stick_x;
-        lbp = -gamepad1.left_stick_y - gamepad1.left_stick_x + gamepad1.right_stick_x;
+        rfp = -gamepad1.left_stick_y + gamepad1.left_stick_x - gamepad1.right_stick_x;
+        rbp = -gamepad1.left_stick_y - gamepad1.left_stick_x - gamepad1.right_stick_x;
+        lfp = -gamepad1.left_stick_y - gamepad1.left_stick_x + gamepad1.right_stick_x;
+        lbp = -gamepad1.left_stick_y + gamepad1.left_stick_x + gamepad1.right_stick_x;
 
         double[] powers = {Math.abs(lfp), Math.abs(lbp), Math.abs(rfp), Math.abs(rbp), 1.0};
         Arrays.sort(powers);
