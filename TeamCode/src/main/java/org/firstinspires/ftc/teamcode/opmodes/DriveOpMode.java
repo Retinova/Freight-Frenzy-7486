@@ -30,6 +30,9 @@ public class DriveOpMode extends LinearOpMode {
         while(isStarted() && !isStopRequested()){
             mecanumDrive();
             prevState.copyState(gamepad1);
+
+            telemetry.addData("Gamepad values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
+            telemetry.update();
         }
     }
 
