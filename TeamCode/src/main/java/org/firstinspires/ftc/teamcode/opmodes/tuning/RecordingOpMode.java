@@ -57,7 +57,7 @@ public class RecordingOpMode extends LinearOpMode {
             }
         });
 
-//        dashboard.startCameraStream(cam, 0);
+        dashboard.startCameraStream(cam, 0);
         dtelemetry.addData("Successfully opened camera", "");
         dtelemetry.update();
 

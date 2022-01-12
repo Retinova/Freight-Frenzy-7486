@@ -1,10 +1,7 @@
 package org.firstinspires.ftc.teamcode.odometry;
 
-import android.content.Context;
-
 import com.qualcomm.robotcore.hardware.DcMotor;
 
-import org.firstinspires.ftc.robotcore.internal.system.AppUtil;
 import org.firstinspires.ftc.teamcode.supers.Direction;
 import org.firstinspires.ftc.teamcode.supers.Robot;
 
@@ -14,18 +11,19 @@ public class Odometry {
     // backend mouse stuff + constants
     private final int dpi = 1000;
     private final int fieldLength = 144000;
-    private final double rZ = 0.0;
-    private int[] lastTotals = {0, 0}; // used to find deltas at every call of update()
+    private final double trackWidth = 10.0; // TODO: measure actual track width and offset
+    private final double horizOffset = 10.0;
 
     // turning vars
     public double angleError;
     // TODO: set threshold + tuning
-    private double turnThreshhold = 1.0;
+    private double turnThreshold = 1.0;
     private PIDController turnPid = new PIDController(0.015, 0.0, 0.0);
 
     // odo vars
-    private double currentX = 0;
-    private double currentY = 0;
+    private double currentX = 0.0;
+    private double currentY = 0.0;
+    private double currentAngle = Math.PI / 2.0; // IN RADIANS
     private double coordError;
     // TODO: set threshold + tuning
     private double coordThreshold = 0b110010000; // 0.4 in
@@ -47,55 +45,41 @@ public class Odometry {
         r.rb.setPower(right / max);
     }
 
-    public void turnTo(double angle){
+    public void turnTo(double angle) {
+        // Convert angle to radians
+        angle = angle * 180.0 / Math.PI;
 
-        // use 0 - 360
-        if(angle >= 180 || angle <= -180) {
-            angle = normalize(angle); // normalize the angle if it's negative
+        // counter to keep track of consecutive times robot was within threshold
+        int counter = 0;
 
-            int counter = 0; // counter to keep track of consecutive times robot was within threshold
+        turnPid.start();
+        angleError = getError(angle, currentAngle);
 
-            turnPid.start();
-            angleError = getError(angle, normalize(getCurrentAngle()));
+        while (r.opMode.isStarted() && !r.opMode.isStopRequested()) {
+            // Threshold check
+            if (counter >= 2) break;
 
-            while (r.opMode.opModeIsActive()) {
-                if(Math.abs(angleError) < turnThreshhold) counter++; // threshold check
-                else counter = 0; // reset threshold counter (i.e. overshoot)
-
-                if(counter >= 2) break;
-
-                setVelocity(0, turnPid.getOutput(angleError)); // set motor velocities with controller output
-
-                r.opMode.telemetry.addData("Current error: ", angleError);
-                r.opMode.telemetry.addData("Current angle: ", getCurrentAngle());
-                r.opMode.telemetry.addData("Target: ", angle);
-                r.opMode.telemetry.update();
-
-                angleError = getError(angle, normalize(getCurrentAngle())); // update error using normalized angle
+            if (Math.abs(angleError) < turnThreshold){
+                counter++;
+                setVelocity(0, 0);
             }
-        }
-
-        // use 180 - -180
-        // all components are the same as above case but adjusted for not using 0 - 360
-        else{
-            int counter = 0;
-
-            turnPid.start();
-            angleError = getError(angle, getCurrentAngle());
-
-            while(r.opMode.opModeIsActive()) {
-                if(Math.abs(angleError) < turnThreshhold) counter++;
-                else counter = 0;
-
-                if(counter >= 2) break;
-
+            // Reset threshold counter (i.e. overshoot)
+            else{
+                counter = 0;
+                // Set motor velocities with controller output
                 setVelocity(0, turnPid.getOutput(angleError));
-                r.opMode.telemetry.addData("Current error: ", angleError);
-                r.opMode.telemetry.addData("Current angle: ", getCurrentAngle());
-                r.opMode.telemetry.addData("Target: ", angle);
-                r.opMode.telemetry.update();
-                angleError = getError(angle, getCurrentAngle());
             }
+
+            r.opMode.telemetry.addData("Current error: ", angleError);
+            r.opMode.telemetry.addData("Current angle: ", currentAngle);
+            r.opMode.telemetry.addData("Target: ", angle);
+            r.opMode.telemetry.update();
+
+            // Update error using normalized angle
+            angleError = getError(angle, currentAngle);
+
+            // Call an update for angle and position
+            update();
         }
 
         setVelocity(0, 0); // stop motion
@@ -103,15 +87,11 @@ public class Odometry {
         turnPid.reset();
 
         r.opMode.telemetry.addData("Current error: ", angleError);
-        r.opMode.telemetry.addData("Current angle: ", getCurrentAngle());
+        r.opMode.telemetry.addData("Current angle: ", currentAngle);
         r.opMode.telemetry.addData("Target: ", angle);
         r.opMode.telemetry.update();
     }
-
-    public double getCurrentAngle(){
-        return r.imu.getAngularOrientation().firstAngle;
-    }
-
+    
     public double normalize(double angle){
         angle = angle % 360;
         if(angle < 0) return angle + 360;
@@ -122,42 +102,40 @@ public class Odometry {
         return actual - target;
     }
 
-    /*public void update() {
-        double currentAng = Math.toRadians(getCurrentAngle()); // get angle in radians
-        double shifted = currentAng + (Math.PI / 2.0); // get angle shifted 90 degrees for y inputs
+    public void update() {
+        // Calculating angular change
+        // TODO: make sure these are the right motors
+        int d1 = r.rwheel.getCurrentPosition(); // x wheel 1
+        int d2 = r.lwheel.getCurrentPosition(); // x wheel 2
+        int d3 = r.carousel.getCurrentPosition(); // y wheel
+        double deltaAngle = d1 + d2 / trackWidth;
 
-        // TODO: check if the whole lastTotals thing is actually necessary
-        int[] totals = mouseThread.getCoords(); // 0 = mouse x, 1 = mouse y
+        // Calculating translational change
+        double cDX = d1 + d2 / 2.0;
+        double cDY = d3 - (deltaAngle * horizOffset);
 
-        // shift the angle for the y-input, but dont for the x-input because perpendicular to y movement(already shifted)
-        // y
-        double deltaX1 = (totals[1] - lastTotals[1]) * Math.cos(shifted);
-        double deltaY1 = (totals[1] - lastTotals[1]) * Math.sin(shifted);
+        // Update angle and position (pose)
+        currentAngle += deltaAngle;
 
-        // x
-        double deltaX2 = (totals[0] - lastTotals[0]) * Math.cos(currentAng);
-        double deltaY2 = (totals[0] - lastTotals[0]) * Math.sin(currentAng);
+        double deltaX = cDX * Math.sin(currentAngle) + cDY * Math.cos(currentAngle);
+        double deltaY = cDX * Math.cos(currentAngle) + cDY * Math.sin(currentAngle);
 
-        // add the calculated deltas
-        currentX += deltaX1 + deltaX2;
-        currentY += deltaY1 + deltaY2;
-
-        // record last update
-        lastTotals = totals;
-    }*/
+        currentX += deltaX;
+        currentY += deltaY;
+    }
 
     // TODO: make it not deltas
-    /*public void drive(double deltaX, double deltaY){
+    public void drive(double deltaX, double deltaY){
 
-        // get the angle to turn for aligning with the hypotenuse from inverse tan, subtract 90 to shift into proper robot orientation
-        double targetAngle = Math.toDegrees(Math.atan2(deltaY, deltaX)) - 90;
+        // get the angle to turn for aligning with the hypotenuse from inverse tan, in radians
+        double targetAngle = Math.atan2(deltaY, deltaX);
 
         // optimize the angle being passed into turnTo() (positive angle vs. negative counterpart, finds whichever is closest)
         if(targetAngle < 0){
-            if(Math.abs(targetAngle - getCurrentAngle()) > Math.abs((targetAngle + 360) - getCurrentAngle())) targetAngle += 360;
+            if(Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle + (2*Math.PI)) - currentAngle)) targetAngle += (2*Math.PI);
         }
         else{
-            if(Math.abs(targetAngle - getCurrentAngle()) > Math.abs((targetAngle - 360) - getCurrentAngle())) targetAngle -= 360;
+            if(Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle - (2*Math.PI)) - currentAngle)) targetAngle -= (2*Math.PI);
         }
 
         // align with hypotenuse
@@ -184,7 +162,7 @@ public class Odometry {
         posPid.start();
 
         coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
-        double angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - Math.PI / 4 - Math.toRadians(getCurrentAngle());
+        double angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - Math.PI / 4 - Math.toRadians(currentAngle);
 
         while(r.opMode.opModeIsActive()){
 //            setVelocity(posPid.getOutput(coordError), 0);
@@ -207,7 +185,7 @@ public class Odometry {
 
             // update coordinates
             update();
-            curAng = Math.toRadians(getCurrentAngle());
+            curAng = Math.toRadians(currentAngle);
 
             coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
             // subtracts the current angle for field-centric
@@ -216,7 +194,7 @@ public class Odometry {
         setVelocity(0, 0);
 
         posPid.reset();
-    }*/
+    }
 
     public void resetEncoders(){
         r.lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
