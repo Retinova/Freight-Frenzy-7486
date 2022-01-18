@@ -5,6 +5,8 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import org.firstinspires.ftc.teamcode.supers.Direction;
 import org.firstinspires.ftc.teamcode.supers.Robot;
 
+import java.util.Arrays;
+
 public class Odometry {
     private Robot r;
 
@@ -33,41 +35,57 @@ public class Odometry {
         this.r = robot;
     }
 
-    public void setVelocity(double forward, double clockwise){
+    public void setVelocity(double forward, double lateral, double clockwise){
         // TODO: make sure directions are correct
-        double right = forward - clockwise;
-        double left = forward + clockwise;
-        double max = Math.max(Math.max(Math.abs(left), Math.abs(right)), 1.0);
+        double lfp, lbp, rfp, rbp;
+        rfp = -forward + lateral - clockwise;
+        rbp = -forward - lateral - clockwise;
+        lfp = -forward - lateral + clockwise;
+        lbp = -forward + lateral + clockwise;
 
-        r.lf.setPower(left / max);
-        r.lb.setPower(left / max);
-        r.rf.setPower(right / max);
-        r.rb.setPower(right / max);
+        // Sorts to find power of highest magnitude
+        double[] powers = {Math.abs(lfp), Math.abs(lbp), Math.abs(rfp), Math.abs(rbp), 1.0};
+        Arrays.sort(powers);
+
+        // Divide by the maximum to maintain ratios between wheel powers that would normally get
+        // ruined by clipping between [-1.0, 1.0]
+        r.lf.setPower(lfp / powers[4]);
+        r.lb.setPower(lbp / powers[4]);
+        r.rf.setPower(rfp / powers[4]);
+        r.rb.setPower(rbp / powers[4]);
     }
 
     public void turnTo(double angle) {
         // Convert angle to radians
         angle = angle * 180.0 / Math.PI;
 
-        // counter to keep track of consecutive times robot was within threshold
+        // Counter to keep track of consecutive times robot was within threshold
         int counter = 0;
 
-        turnPid.start();
+        // Record PID output at beginning of every cycle
+        double angleOut;
+
+        // Begin the PID controller's timer and initiate the loop with the initial error
         angleError = getError(angle, currentAngle);
+        turnPid.start();
 
         while (r.opMode.isStarted() && !r.opMode.isStopRequested()) {
             // Threshold check
             if (counter >= 2) break;
 
+            // Update PID regardless of threshold status to prevent inaccuracies
+            angleOut = turnPid.getOutput(angleError);
+
+            // Increment the counter by one if the robot falls within the threshold, indicating a potential end of the motion
             if (Math.abs(angleError) < turnThreshold){
                 counter++;
-                setVelocity(0, 0);
+                setVelocity(0, 0, 0);
             }
-            // Reset threshold counter (i.e. overshoot)
+            // Reset threshold counter (i.e. overshoot has occurred or the motion is still active)
             else{
                 counter = 0;
-                // Set motor velocities with controller output
-                setVelocity(0, turnPid.getOutput(angleError));
+                // Set motor velocities with PID controller output
+                setVelocity(0, 0, angleOut);
             }
 
             r.opMode.telemetry.addData("Current error: ", angleError);
@@ -82,7 +100,8 @@ public class Odometry {
             update();
         }
 
-        setVelocity(0, 0); // stop motion
+        // Officially end the motion
+        setVelocity(0, 0, 0);
 
         turnPid.reset();
 
@@ -108,7 +127,7 @@ public class Odometry {
         int d1 = r.rwheel.getCurrentPosition(); // x wheel 1
         int d2 = r.lwheel.getCurrentPosition(); // x wheel 2
         int d3 = r.carousel.getCurrentPosition(); // y wheel
-        double deltaAngle = d1 + d2 / trackWidth;
+        double deltaAngle = d1 - d2 / trackWidth;
 
         // Calculating translational change
         double cDX = d1 + d2 / 2.0;
@@ -125,73 +144,78 @@ public class Odometry {
     }
 
     // TODO: make it not deltas
-    public void drive(double deltaX, double deltaY){
+    public void drive(double deltaX, double deltaY, boolean turn){
+        // Only do if turning is desired
+        if(turn) {
+            // Get the angle to turn for aligning with the hypotenuse from inverse tan, in radians
+            double targetAngle = Math.atan2(deltaY, deltaX);
 
-        // get the angle to turn for aligning with the hypotenuse from inverse tan, in radians
-        double targetAngle = Math.atan2(deltaY, deltaX);
+            // Optimize the angle being passed into turnTo() (positive angle vs. negative counterpart, finds whichever is closest)
+            if (targetAngle < 0) {
+                if (Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle + (2 * Math.PI)) - currentAngle))
+                    targetAngle += (2 * Math.PI);
+            } else {
+                if (Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle - (2 * Math.PI)) - currentAngle))
+                    targetAngle -= (2 * Math.PI);
+            }
 
-        // optimize the angle being passed into turnTo() (positive angle vs. negative counterpart, finds whichever is closest)
-        if(targetAngle < 0){
-            if(Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle + (2*Math.PI)) - currentAngle)) targetAngle += (2*Math.PI);
+            // Align with hypotenuse
+            turnTo(targetAngle);
         }
-        else{
-            if(Math.abs(targetAngle - currentAngle) > Math.abs((targetAngle - (2*Math.PI)) - currentAngle)) targetAngle -= (2*Math.PI);
-        }
 
-        // align with hypotenuse
-        turnTo(targetAngle);
-
-
-        // get the target distance as the current "y" value plus the hypotenuse of the desired change in coordinates
-//        double targetDist = currentY + Math.hypot(Math.abs(deltaX), Math.abs(deltaY)); // irrelevant now?
-
+        // set up target coordinates
         double targetX = currentX + deltaX;
         double targetY = currentY + deltaY;
 
-        double lf;
-        double lb;
-        double rf;
-        double rb;
+        // Record PID output at beginning of every cycle
         double coordOut;
-        double curAng;
 
+        // Counter to keep track of consecutive times robot was within threshold
         int counter = 0;
 
         // TODO: eventually add maintaining of angle (see PushbotAutoDriveByGyro)
 
+        // Calculate the coordinate error as a resultant of the x and y error "vectors".
+        // The corresponding output from the PID controller is also treated as a "scaled" resultant
+        // and broken up into its x and y components as the lateral and forward velocities, respectively.
+        // This works since we need to form the two error measures into one input for the PID controller,
+        // and the angle to the target coordinates is a definite value that we calculate every cycle.
+        // The only thing that then matters is the "speed" at which we approach the target coordinate,
+        // the direction is taken care of by the calculated angle.
+        coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
+        double angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - currentAngle;
+
+        // Begin the PID controller's timer and initiate the loop with the initial error
         posPid.start();
 
-        coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
-        double angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - Math.PI / 4 - Math.toRadians(currentAngle);
-
-        while(r.opMode.opModeIsActive()){
-//            setVelocity(posPid.getOutput(coordError), 0);
-            if(Math.abs(coordError) < coordThreshold) counter++;
-            else counter = 0;
-
+        while(r.opMode.isStarted() && !r.opMode.isStopRequested()){
+            // Threshold check
             if(counter >= 2) break;
 
+            // Update PID regardless of threshold status to prevent inaccuracies
             coordOut = posPid.getOutput(coordError);
 
-            lf = coordOut * Math.sin(angleToTarget);
-            lb = coordOut * Math.cos(angleToTarget);
-            rf = coordOut * Math.cos(angleToTarget);
-            rb = coordOut * Math.sin(angleToTarget);
+            // Increment the counter by one if the robot falls within the threshold, indicating a potential end of the motion
+            if(Math.abs(coordError) < coordThreshold){
+                counter++;
+                setVelocity(0, 0, 0);
+            }
+            // Reset threshold counter (i.e. overshoot has occurred or the motion is still active)
+            else{
+                counter = 0;
+                // Set motor velocities with controller output
+                setVelocity(coordOut * Math.sin(angleToTarget), coordOut * Math.cos(angleToTarget), 0);
+            }
 
-            r.lf.setPower(lf);
-            r.lb.setPower(lb);
-            r.rf.setPower(rf);
-            r.rb.setPower(rb);
-
-            // update coordinates
+            // Update coordinates
             update();
-            curAng = Math.toRadians(currentAngle);
-
             coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
-            // subtracts the current angle for field-centric
-            angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - Math.PI / 4 - curAng;
+            // Subtracts the current angle for field-centric
+            angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - currentAngle;
         }
-        setVelocity(0, 0);
+
+        // Officially end the motion
+        setVelocity(0, 0, 0);
 
         posPid.reset();
     }

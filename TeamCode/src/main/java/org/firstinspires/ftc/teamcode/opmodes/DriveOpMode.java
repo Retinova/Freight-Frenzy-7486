@@ -37,10 +37,24 @@ public class DriveOpMode extends LinearOpMode {
         while(isStarted() && !isStopRequested()){
             // Handles driving controls
             mecanumDrive();
+/*
+            if(gamepad1.b) {
+                r.lf.setPower(1);
+                r.lb.setPower(1);
+                r.rf.setPower(1);
+                r.rb.setPower(1);
+            }
+            else{
+                r.lf.setPower(0);
+                r.lb.setPower(0);
+                r.rf.setPower(0);
+                r.rb.setPower(0);
+            }
+*/
 
             // Compliance wheel servo controls
             if (gamepad1.dpad_up && !prevState.dpad_up) {
-                r.lwheelrot.setPosition(1);
+                r.lwheelrot.setPosition(0.9);
                 r.rwheelrot.setPosition(0);
             }
             if (gamepad1.dpad_down && !prevState.dpad_down) {
@@ -75,6 +89,7 @@ public class DriveOpMode extends LinearOpMode {
 
             // Telemetry
             telemetry.addData("Gamepad values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
+            telemetry.addData("Servos", "lwheelrot: %.1f| rwheelrot: %.1f)", r.lwheelrot.getPosition(), r.rwheelrot.getPosition());
             telemetry.update();
         }
     }
@@ -100,4 +115,4 @@ public class DriveOpMode extends LinearOpMode {
     }
 }
 
-// Sussy Baka
+// Sussy Baka (aka Ron)

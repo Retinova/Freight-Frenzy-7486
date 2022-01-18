@@ -31,7 +31,7 @@ public class Robot {
         rb = hwMap.get(DcMotor.class, "rb");
         lwheel = hwMap.get(DcMotor.class, "lwheel");
         rwheel = hwMap.get(DcMotor.class, "rwheel");
-        carousel = hwMap.get(DcMotor.class, "");
+        carousel = hwMap.get(DcMotor.class, "carousel");
 
         lwheelrot = hwMap.get(Servo.class, "lwheelrot");
         rwheelrot = hwMap.get(Servo.class, "rwheelrot");
@@ -42,7 +42,12 @@ public class Robot {
 
         lf.setDirection(DcMotorSimple.Direction.REVERSE);
         lb.setDirection(DcMotorSimple.Direction.REVERSE);
-        rwheel.setDirection(DcMotorSimple.Direction.REVERSE);
+        lwheel.setDirection(DcMotorSimple.Direction.REVERSE);
+
+        lf.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        lb.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rf.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rb.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
         lwheelrot.setDirection(Servo.Direction.REVERSE);
 
