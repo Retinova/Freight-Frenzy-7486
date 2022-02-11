@@ -52,12 +52,16 @@ public class DriveOpMode extends LinearOpMode {
             }
 */
 
+            // Arm controls
+            if(gamepad1.right_trigger == 0 && gamepad1.left_trigger == 0) manageArm();
+            else r.arm.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
+
             // Compliance wheel servo controls
-            if (gamepad1.dpad_up && !prevState.dpad_up) {
+            if (gamepad1.right_bumper && !prevState.right_bumper) {
                 r.lwheelrot.setPosition(0.9);
                 r.rwheelrot.setPosition(0);
             }
-            if (gamepad1.dpad_down && !prevState.dpad_down) {
+            if (gamepad1.left_bumper && !prevState.left_bumper) {
                 r.lwheelrot.setPosition(0);
                 r.rwheelrot.setPosition(0);
             }
@@ -112,6 +116,14 @@ public class DriveOpMode extends LinearOpMode {
         r.lb.setPower(lbp / powers[4]);
         r.rf.setPower(rfp / powers[4]);
         r.rb.setPower(rbp / powers[4]);
+    }
+
+    public void manageArm(){
+        // TODO: measure positions vs. angle (radians, Q1,2,4), or change to PD loop or something if needed
+        // https://www.desmos.com/calculator/wgxtt5cy8x
+        double angle = r.arm.getCurrentPosition() / 1.0 * 1.0;
+        double pwrProp = (80.7853310966) * Math.cos(angle) / 93.6;
+        r.arm.setPower(pwrProp);
     }
 }
 
