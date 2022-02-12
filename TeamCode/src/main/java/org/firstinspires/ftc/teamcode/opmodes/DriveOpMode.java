@@ -20,6 +20,7 @@ public class DriveOpMode extends LinearOpMode {
 
     // Toggle variables
     boolean wheelToggle = false, carouselToggle = false;
+    int armTarget = 0;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -30,17 +31,22 @@ public class DriveOpMode extends LinearOpMode {
 
         r.initCheck();
 
+        armTarget = r.arm.getCurrentPosition();
+        r.arm.setTargetPosition(armTarget);
+
         waitForStart();
 
         timer.reset();
+
+        r.arm.setPower(1.0);
 
         while(isStarted() && !isStopRequested()){
             // Handles driving controls
             mecanumDrive();
 
             // Arm controls
-            if(gamepad1.right_trigger == 0 && gamepad1.left_trigger == 0) manageArm();
-            else r.arm.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
+            armTarget += (int) (gamepad1.right_trigger*255 - gamepad1.left_trigger*255) / 10;
+            r.arm.setTargetPosition(armTarget);
 
             // Compliance wheel servo controls
             if (gamepad1.right_bumper && !prevState.right_bumper) {
@@ -80,6 +86,7 @@ public class DriveOpMode extends LinearOpMode {
             // Telemetry
             telemetry.addData("Gamepad LS values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
             telemetry.addData("Servos", "lwheelrot: %.1f| rwheelrot: %.1f)", r.lwheelrot.getPosition(), r.rwheelrot.getPosition());
+            telemetry.addData("Arm target", "%d", armTarget);
             telemetry.update();
 
             // Grab new encoder values
