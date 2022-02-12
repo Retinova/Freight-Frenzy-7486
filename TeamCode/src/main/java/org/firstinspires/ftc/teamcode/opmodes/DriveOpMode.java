@@ -37,20 +37,6 @@ public class DriveOpMode extends LinearOpMode {
         while(isStarted() && !isStopRequested()){
             // Handles driving controls
             mecanumDrive();
-/*
-            if(gamepad1.b) {
-                r.lf.setPower(1);
-                r.lb.setPower(1);
-                r.rf.setPower(1);
-                r.rb.setPower(1);
-            }
-            else{
-                r.lf.setPower(0);
-                r.lb.setPower(0);
-                r.rf.setPower(0);
-                r.rb.setPower(0);
-            }
-*/
 
             // Arm controls
             if(gamepad1.right_trigger == 0 && gamepad1.left_trigger == 0) manageArm();
@@ -92,9 +78,12 @@ public class DriveOpMode extends LinearOpMode {
             prevState.copyState(gamepad1);
 
             // Telemetry
-            telemetry.addData("Gamepad values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
+            telemetry.addData("Gamepad LS values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
             telemetry.addData("Servos", "lwheelrot: %.1f| rwheelrot: %.1f)", r.lwheelrot.getPosition(), r.rwheelrot.getPosition());
             telemetry.update();
+
+            // Grab new encoder values
+            r.bulkRead();
         }
     }
 

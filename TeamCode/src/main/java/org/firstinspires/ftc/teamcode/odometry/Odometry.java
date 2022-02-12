@@ -2,17 +2,18 @@ package org.firstinspires.ftc.teamcode.odometry;
 
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.teamcode.supers.ConfigVars;
 import org.firstinspires.ftc.teamcode.supers.Direction;
 import org.firstinspires.ftc.teamcode.supers.Robot;
 
 import java.util.Arrays;
-
 public class Odometry {
     private Robot r;
 
-    // backend mouse stuff + constants
-    private final int dpi = 1000;
-    private final int fieldLength = 144000;
+    // constants for odometry
+    private final double wheelDiameter = 0.0;
+    private final double ticksPerRev = 360.0;
+    private final double gearRatio = 1.0;
     private final double trackWidth = 10.0; // TODO: measure actual track width and offset
     private final double horizOffset = 10.0;
 
@@ -20,7 +21,7 @@ public class Odometry {
     public double angleError;
     // TODO: set threshold + tuning
     private double turnThreshold = 1.0;
-    private PIDController turnPid = new PIDController(0.015, 0.0, 0.0);
+    private PIDController turnPid = new PIDController(ConfigVars.turnP, ConfigVars.turnI, ConfigVars.turnD);
 
     // odo vars
     private double currentX = 0.0;
@@ -29,7 +30,7 @@ public class Odometry {
     private double coordError;
     // TODO: set threshold + tuning
     private double coordThreshold = 0b110010000; // 0.4 in
-    private PIDController posPid = new PIDController(0, 0, 0);
+    private PIDController posPid = new PIDController(ConfigVars.posP, ConfigVars.posI, ConfigVars.posD);
 
     public Odometry(Robot robot){
         this.r = robot;
@@ -122,6 +123,9 @@ public class Odometry {
     }
 
     public void update() {
+        // TODO: make sure this doesnt cause issues, switch to auto mode if needed
+        r.bulkRead();
+
         // Calculating angular change
         // TODO: make sure these are the right motors
         int d1 = r.rwheel.getCurrentPosition(); // x wheel 1
@@ -220,6 +224,68 @@ public class Odometry {
         posPid.reset();
     }
 
+    // Overload of normal drive with default to no turning
+    public void drive(double deltaX, double deltaY){
+        drive(deltaX, deltaY, false);
+    }
+
+    public void drivePath(double[][] targetSet){
+//        if(targetSet[0].length != 2) throw new InterruptedException("Invalid coordinate array");
+
+        // Set first target to first coordinate
+        double targetX = targetSet[0][0];
+        double targetY = targetSet[0][1];
+        double coordOut;
+        // Start the threshold at a larger value so that we just generally follow the path
+        double currentThreshhold = 50; // TODO: setup actual threshholds
+
+        // The counter here is different, here it is counting which coordinate we are at
+        int counter = 0;
+
+
+        // Begin the PID controller's timer and initiate the loop with the initial error
+        coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
+        double angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - currentAngle;
+        posPid.start();
+
+        // This loop is now set up to end once the last coordinate is reaches
+        while(r.opMode.isStarted() && !r.opMode.isStopRequested() && counter <= targetSet.length-1){
+            // Update PID regardless of threshold status to prevent inaccuracies
+            coordOut = posPid.getOutput(coordError);
+
+            // Increment the counter by one if the robot falls within the threshold, indicating a potential end of the motion
+            if(Math.abs(coordError) < currentThreshhold){
+                if(++counter == targetSet.length-1){
+                    currentThreshhold = coordThreshold;
+                }
+
+                if(counter != targetSet.length) {
+                    targetX = targetSet[counter][0];
+                    targetY = targetSet[counter][1];
+                    posPid.reset();
+                }
+                else break;
+
+            }
+            // Reset threshold counter (i.e. overshoot has occurred or the motion is still active)
+            else{
+                // Set motor velocities with controller output
+                setVelocity(coordOut * Math.sin(angleToTarget), coordOut * Math.cos(angleToTarget), 0);
+            }
+
+            // Update coordinates
+            update();
+            coordError = Math.hypot(getError(targetX, currentX), getError(targetY, currentY));
+            // Subtracts the current angle for field-centric
+            angleToTarget = Math.atan2(getError(targetY, currentY), getError(targetX, currentX)) - currentAngle;
+        }
+
+        // Officially end the motion
+        setVelocity(0, 0, 0);
+
+        posPid.reset();
+    }
+
     public void resetEncoders(){
         r.lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         r.lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
@@ -230,6 +296,11 @@ public class Odometry {
         r.lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         r.rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         r.rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+    public double[] getCoords(){
+        double inchesPerTick = wheelDiameter * Math.PI / (ticksPerRev * gearRatio);
+        return new double[]{currentX * inchesPerTick, currentY * inchesPerTick};
     }
 
     public void drive(Direction direction, double distance, double speed){
@@ -306,6 +377,9 @@ public class Odometry {
             while (r.opMode.opModeIsActive() &&
                     (r.lf.isBusy() || r.lb.isBusy() || r.rf.isBusy() || r.rb.isBusy())) {
 
+                // TODO: make sure this doesnt cause issues, switch to auto mode if needed
+                r.bulkRead();
+
                 // Display current status of motor paths
                 r.opMode.telemetry.addData("Path1", "Running to %7d :%7d :%7d :%7d", newLeftFrontTarget, newLeftBackTarget, newRightFrontTarget, newRightBackTarget);
                 r.opMode.telemetry.addData("Path2", "Running at %7d :%7d :%7d :%7d", r.lf.getCurrentPosition(), r.lb.getCurrentPosition(), r.rf.getCurrentPosition(), r.rb.getCurrentPosition());
@@ -332,3 +406,40 @@ public class Odometry {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+ _____  _____ _   _ ___________   _____   ___  ___  ___ _____ _____   _
+/  ___||  _  | | | |_   _|  _  \ |  __ \ / _ \ |  \/  ||  ___/  ___| | |
+\ `--. | | | | | | | | | | | | | | |  \// /_\ \| .  . || |__ \ `--.  | |
+ `--. \| | | | | | | | | | | | | | | __ |  _  || |\/| ||  __| `--. \ | |
+/\__/ /\ \/' / |_| |_| |_| |/ /  | |_\ \| | | || |  | || |___/\__/ / |_|
+\____/  \_/\_\\___/ \___/|___/    \____/\_| |_/\_|  |_/\____/\____/  (_)
+
+and they dropped the robot
+ */
