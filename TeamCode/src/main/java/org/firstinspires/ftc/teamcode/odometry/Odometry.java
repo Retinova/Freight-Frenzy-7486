@@ -56,6 +56,78 @@ public class Odometry {
         r.rb.setPower(rbp / powers[4]);
     }
 
+    @Deprecated
+    public void turn(double angle){
+        // use 0 - 360
+        if(angle >= 180 || angle <= -180) {
+            angle = normalize(angle); // normalize the angle if it's negative
+
+            int counter = 0; // counter to keep track of consecutive times robot was within threshold
+
+            double output = 0;
+
+            turnPid.start();
+            angleError = getError(angle, normalize(getCurrentAngle()));
+
+            while (r.opMode.opModeIsActive()) {
+                if(Math.abs(angleError) < turnThreshold) counter++; // threshold check
+                else counter = 0; // reset threshold counter (i.e. overshoot)
+
+                if(counter >= 2) break;
+
+                output = turnPid.getOutput(angleError);
+                setVelocity(0, 0, output); // set motor velocities with controller output
+
+                r.dashT.addData("Current error: ", angleError);
+                r.dashT.addData("Current angle: ", getCurrentAngle());
+                r.dashT.addData("Target: ", angle);
+                r.dashT.addData("Consts.", "P: %.4f | I: %.4f | D: %.4f", turnPid.getkP(), turnPid.getkI(), turnPid.getkD());
+                r.dashT.addData("Output", "%.6f", output);
+                r.dashT.update();
+
+                angleError = getError(angle, normalize(getCurrentAngle())); // update error using normalized angle
+            }
+        }
+
+        // use 180 - -180
+        // all components are the same as above case but adjusted for not using 0 - 360
+        else{
+            int counter = 0;
+
+            double output = 0;
+
+            turnPid.start();
+            angleError = getError(angle, getCurrentAngle());
+
+            while(r.opMode.opModeIsActive()) {
+                if(Math.abs(angleError) < turnThreshold) counter++;
+                else counter = 0;
+
+                if(counter >= 2) break;
+
+                output = turnPid.getOutput(angleError);
+                setVelocity(0, 0, output);
+
+                r.dashT.addData("Current error: ", angleError);
+                r.dashT.addData("Current angle: ", getCurrentAngle());
+                r.dashT.addData("Target: ", angle);
+                r.dashT.addData("Consts.", "P: %.4f | I: %.4f | D: %.4f", turnPid.getkP(), turnPid.getkI(), turnPid.getkD());
+                r.dashT.addData("Output", "%.6f", output);
+                r.dashT.update();
+                angleError = getError(angle, getCurrentAngle());
+            }
+        }
+
+        setVelocity(0, 0, 0); // stop motion
+
+        turnPid.reset();
+
+        r.dashT.addData("Current error: ", angleError);
+        r.dashT.addData("Current angle: ", getCurrentAngle());
+        r.dashT.addData("Target: ", angle);
+        r.dashT.update();
+    }
+
     public void turnTo(double angle) {
         // Convert angle to radians
         angle = angle * 180.0 / Math.PI;
@@ -110,6 +182,11 @@ public class Odometry {
         r.opMode.telemetry.addData("Current angle: ", currentAngle);
         r.opMode.telemetry.addData("Target: ", angle);
         r.opMode.telemetry.update();
+    }
+
+    public double getCurrentAngle(){
+        // TODO: make imu the expansion hub, not control hub, or change axis
+        return r.imu.getAngularOrientation().firstAngle;
     }
     
     public double normalize(double angle){
@@ -310,8 +387,8 @@ public class Odometry {
         int newRightFrontTarget = 0;
         int newRightBackTarget = 0;
 
-        double wheelDiam = 4.0;
-        double ticksPerRev = 537.6;
+        double wheelDiam = 6.0;
+        double ticksPerRev = 751.8;
         double inchesPerRev = wheelDiam * Math.PI;
         double ticksPerInch = ticksPerRev/inchesPerRev;
 
@@ -404,6 +481,14 @@ public class Odometry {
                 r.rb.setPower(0);
             }
         }
+
+        resetEncoders();
+    }
+
+    public void updateCoeffs(double kP, double kI, double kD){
+        turnPid.setkP(kP);
+        turnPid.setkI(kI);
+        turnPid.setkD(kD);
     }
 }
 

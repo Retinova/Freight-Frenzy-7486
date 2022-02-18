@@ -57,4 +57,28 @@ public class PIDController {
 
         return (kP * p) + (kI * i) + (kD * d);
     }
+
+    public void setkP(double kP) {
+        this.kP = kP;
+    }
+
+    public void setkI(double kI){
+        this.kI = kI;
+    }
+
+    public void setkD(double kD) {
+        this.kD = kD;
+    }
+
+    public double getkP() {
+        return kP;
+    }
+
+    public double getkI() {
+        return kI;
+    }
+
+    public double getkD() {
+        return kD;
+    }
 }

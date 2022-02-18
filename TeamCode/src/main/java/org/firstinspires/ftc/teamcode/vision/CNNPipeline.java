@@ -27,10 +27,11 @@ public class CNNPipeline extends OpenCvPipeline {
     private Mat output = new Mat();
     public ArrayList<String> layers;
     public double[] latest = new double[3];
+    public ArrayList<Integer> results = new ArrayList<>();
 
 
     public CNNPipeline(){
-        cnn = Dnn.readNetFromTensorflow(getPath("v1_0_frozen_graph.pb"));
+        cnn = Dnn.readNetFromTensorflow(getPath("v1_1_frozen_graph.pb"));
         layers = (ArrayList<String>) cnn.getLayerNames();
     }
 
