@@ -4,6 +4,7 @@ import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.util.ElapsedTime;
+import com.qualcomm.robotcore.util.Range;
 
 import org.firstinspires.ftc.teamcode.supers.GamepadState;
 import org.firstinspires.ftc.teamcode.supers.Mode;
@@ -22,7 +23,11 @@ public class DriveOpMode extends LinearOpMode {
     // Toggle variables
     boolean wheelToggle = false, carouselToggle = false;
     int armTarget = 0;
-    double servo1Pos = 0.96, servo2Pos = 0.95;
+    double servoTarget = 0.0;
+
+    // Other variables
+    final double armToDegrees = 360.0 / 1992.6;
+    final double degreesToServo = 1.0 / 280.0;
 
     @Override
     public void runOpMode() throws InterruptedException {
@@ -41,58 +46,28 @@ public class DriveOpMode extends LinearOpMode {
 
         timer.reset();
 
-        r.arm.setPower(0.9);
-
-        r.lwheelrot.setPosition(servo1Pos);
-        r.rwheelrot.setPosition(servo2Pos);
+        r.arm.setPower(0.8);
 
         while(isStarted() && !isStopRequested()){
             // Handles driving controls
             mecanumDrive();
 
             // Arm controls
-//            armTarget += (int) (gamepad1.right_trigger*200 - gamepad1.left_trigger*200) / 20;
-//            r.arm.setTargetPosition(armTarget);
+            armTarget += (int) (gamepad1.right_trigger*200 - gamepad1.left_trigger*200) / 20;
+            r.arm.setTargetPosition(armTarget);
 
-            // Compliance wheel servo controls
-            if (gamepad1.right_bumper && !prevState.right_bumper) {
-                servo1Pos = Math.min(servo1Pos + 0.025, 0.96);
-                servo2Pos = Math.min(servo2Pos + 0.025, 0.95);
-                r.lwheelrot.setPosition(servo1Pos);
-                r.rwheelrot.setPosition(servo2Pos);
-            }
-            if (gamepad1.left_bumper && !prevState.left_bumper) {
-                servo1Pos = Math.max(servo1Pos - 0.025, 0.46);
-                servo2Pos = Math.max(servo2Pos - 0.025, 0.45);
-                r.lwheelrot.setPosition(servo1Pos);
-                r.rwheelrot.setPosition(servo2Pos);
-            }
+            servoTarget = r.arm.getTargetPosition() * armToDegrees * degreesToServo;
+            r.dropper.setPosition(Range.clip(servoTarget, 0.0, 1.0));
 
-            // Compliance wheel controls
-/*            if (gamepad1.x && !prevState.x) {
-                wheelToggle = !wheelToggle;
-
-                if (wheelToggle) {
-                    r.lwheel.setPower(1);
-                    r.rwheel.setPower(1);
-                }
-                else {
-                    r.lwheel.setPower(0);
-                    r.rwheel.setPower(0);
-                }
-            }*/
-
-            r.lwheel.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
-            r.rwheel.setPower(gamepad1.right_trigger - gamepad1.left_trigger);
 
             // Carousel motor controls
-            if (gamepad1.a && !prevState.a){
+            if (gamepad1.dpad_left && !prevState.dpad_left){
                 carouselToggle = !carouselToggle;
 
                 if(carouselToggle) r.carousel.setPower(1.0);
                 else r.carousel.setPower(0.0);
             }
-            if (gamepad1.y && !prevState.y){
+            if (gamepad1.dpad_right && !prevState.dpad_right){
                 carouselToggle = !carouselToggle;
 
                 if(carouselToggle) r.carousel.setPower(-1.0);
@@ -105,8 +80,7 @@ public class DriveOpMode extends LinearOpMode {
             // Telemetry
             telemetry.addData("Gamepad LS values", "(%.1f, %.1f)", gamepad1.left_stick_x, gamepad1.left_stick_y);
             telemetry.addData("Arm target", "%d", armTarget);
-            telemetry.addData("Servos", "lwheelrot: %.3f| rwheelrot: %.3f)", r.lwheelrot.getPosition(), r.rwheelrot.getPosition());
-            telemetry.addData("Servo pos: ", "%.3f | %.3f", servo1Pos, servo2Pos);
+            telemetry.addData("Servo target", "%.4f", servoTarget);
             telemetry.update();
 
             // Grab new encoder values

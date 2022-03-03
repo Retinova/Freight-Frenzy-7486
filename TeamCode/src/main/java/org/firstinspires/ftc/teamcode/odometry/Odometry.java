@@ -205,8 +205,8 @@ public class Odometry {
 
         // Calculating angular change
         // TODO: make sure these are the right motors
-        int d1 = r.rwheel.getCurrentPosition(); // x wheel 1
-        int d2 = r.lwheel.getCurrentPosition(); // x wheel 2
+        int d1 = r.lf.getCurrentPosition(); // x wheel 1
+        int d2 = r.lb.getCurrentPosition(); // x wheel 2
         int d3 = r.carousel.getCurrentPosition(); // y wheel
         double deltaAngle = d1 - d2 / trackWidth;
 

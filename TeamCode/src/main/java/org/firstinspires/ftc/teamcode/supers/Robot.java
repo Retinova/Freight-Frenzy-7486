@@ -16,8 +16,8 @@ import org.firstinspires.ftc.teamcode.odometry.Odometry;
 import java.util.List;
 
 public class Robot {
-    public final DcMotor lf, rf, lb, rb, lwheel, rwheel, carousel, arm;
-    public final Servo lwheelrot, rwheelrot, dropper;
+    public final DcMotor lf, rf, lb, rb, carousel, arm;
+    public final Servo dropper, claw;
     public final CRServo gate;
     public final BNO055IMU imu;
     public final BNO055IMU.Parameters params = new BNO055IMU.Parameters();
@@ -42,14 +42,11 @@ public class Robot {
         rf = hwMap.get(DcMotor.class, "rf");
         lb = hwMap.get(DcMotor.class, "lb");
         rb = hwMap.get(DcMotor.class, "rb");
-        lwheel = hwMap.get(DcMotor.class, "lwheel");
-        rwheel = hwMap.get(DcMotor.class, "rwheel");
         carousel = hwMap.get(DcMotor.class, "carousel");
         arm = hwMap.get(DcMotor.class, "arm");
 
-        lwheelrot = hwMap.get(Servo.class, "lwheelrot");
-        rwheelrot = hwMap.get(Servo.class, "rwheelrot");
         dropper = hwMap.get(Servo.class, "dropper");
+        claw = hwMap.get(Servo.class, "claw");
 
         gate = hwMap.get(CRServo.class, "gate");
 
@@ -65,14 +62,11 @@ public class Robot {
 
         lf.setDirection(DcMotorSimple.Direction.REVERSE);
         lb.setDirection(DcMotorSimple.Direction.REVERSE);
-        lwheel.setDirection(DcMotorSimple.Direction.REVERSE);
 
         lf.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         lb.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rf.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
         rb.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-        lwheelrot.setDirection(Servo.Direction.REVERSE);
 
         switch (mode) {
             case TELEOP:
